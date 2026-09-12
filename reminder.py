@@ -76,39 +76,66 @@ def normalize_text(text: str) -> str:
     return t.lower()
 
 
+# 语音识别常混淆的声母组,近音容错时视为等价(如「先到」xian ≈「签到」qian)
+CONFUSABLE_INITIALS = (
+    {"q", "x", "j"},
+    {"z", "zh"}, {"c", "ch"}, {"s", "sh"},
+    {"n", "l"}, {"f", "h"}, {"l", "r"},
+)
+
+
 def pinyin_seq(text: str) -> tuple:
-    """逐字转无声调拼音序列;非汉字原样小写(F→f)"""
+    """逐字转(声母,韵母)序列;非汉字以 (字符, 字符) 表示"""
     if lazy_pinyin is None or not text:
         return ()
     out = []
     for ch in text:
-        py = lazy_pinyin(ch, style=Style.NORMAL)
-        out.append((py[0] if py else ch).lower())
+        ini = lazy_pinyin(ch, style=Style.INITIALS, strict=False)
+        fin = lazy_pinyin(ch, style=Style.FINALS, strict=False)
+        i = (ini[0] if ini else "").lower()
+        f = (fin[0] if fin else "").lower()
+        out.append((i, f) if (i or f) else (ch, ch))
     return tuple(out)
 
 
+def syllables_equal(a: tuple, b: tuple, fuzzy: bool) -> bool:
+    """两音节是否等价:fuzzy 时韵母相同且声母同组(或相同)即算命中"""
+    if a == b:
+        return True
+    if not fuzzy:
+        return False
+    ai, af = a
+    bi, bf = b
+    if af != bf:
+        return False
+    if ai == bi:
+        return True
+    return any(ai in g and bi in g for g in CONFUSABLE_INITIALS)
+
+
 def parse_keyword(raw: str):
-    """尾部 * 表示该词启用拼音同音容错,如「副店长*」可命中「副典長」"""
+    """尾部 * 表示该词启用拼音近音容错,如「签到*」可命中「先到」「千道」"""
     fuzzy = raw.endswith("*")
     return (raw[:-1] if fuzzy else raw), fuzzy
 
 
 def build_matchers(keywords, default_fuzzy: bool) -> list:
-    """[(原词, 归一化词, 拼音序列或 None)]"""
+    """[(原词, 归一化词, 拼音序列或 None, 是否近音容错)]"""
     matchers = []
     for raw in keywords:
         kw, fuzzy = parse_keyword(raw)
         norm = normalize_text(kw)
-        py = pinyin_seq(norm) if ((fuzzy or default_fuzzy) and norm) else None
-        matchers.append((kw, norm, py))
+        use_py = fuzzy or default_fuzzy
+        py = pinyin_seq(norm) if (use_py and norm) else None
+        matchers.append((kw, norm, py, bool(fuzzy or default_fuzzy)))
     return matchers
 
 
 def match_keywords(text_norm: str, matchers: list) -> list:
-    """返回命中的原始关键词列表:先精确子串,再拼音同音滑动窗口"""
+    """返回命中的原始关键词列表:先精确子串,再拼音(近音)滑动窗口"""
     hits = []
     text_py = None
-    for display, norm, py in matchers:
+    for display, norm, py, fuzzy in matchers:
         if norm and norm in text_norm:
             hits.append(display)
             continue
@@ -117,7 +144,8 @@ def match_keywords(text_norm: str, matchers: list) -> list:
                 text_py = pinyin_seq(text_norm)
             n = len(py)
             for i in range(len(text_py) - n + 1):
-                if text_py[i:i + n] == py:
+                if all(syllables_equal(text_py[i + j], py[j], fuzzy)
+                       for j in range(n)):
                     hits.append(display)
                     break
     return hits
@@ -304,6 +332,8 @@ def process_window(model, window: np.ndarray, sr: int, matchers, s, last_hit: di
     text = "".join(seg.text for seg in segments if seg.no_speech_prob < 0.7).strip()
     if not text:
         return
+    if zh_convert:  # Whisper 输出简繁混杂,统一转简体再显示/推送
+        text = zh_convert(text, "zh-cn")
     if not s.quiet:
         print(f"[{ts()}] {text}")
     hits = match_keywords(normalize_text(text), matchers)

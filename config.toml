@@ -3,15 +3,15 @@
 
 # 监听的回环(系统声音)设备编号,用 `python reminder.py --list-devices` 查看
 # 不填则自动跟随系统默认播放设备
-device = 34
+device = 35
 
 # whisper 模型: tiny/base/small/medium,越大越准越慢(首次运行自动下载)
 model = "small"
 
 # 关键词列表;繁体转写自动归一(「副店長」=「副店长」)
-# 词尾加 * 表示启用拼音同音容错:如「副店长*」可命中误转写的「副典长」
-# 注意:同音容错有误报风险(如「千岛湖」与「签到」同音),只给需要的词加 *
-keywords = ["副店长*", "FDE", "签到"]
+# 词尾加 * 启用拼音近音容错:「签到*」可命中「千道」(同音)和「先到」(声母 q/x 易混)
+# 注意:容错越大误报越多(如「千岛湖」会命中「签到*」),只给确实需要的词加 *
+keywords = ["签到*"]
 
 # 同一关键词两次提醒的最小间隔(秒)
 cooldown = 30
@@ -30,12 +30,12 @@ beep = true    # 提示音
 # 不打印每段识别文本(调试建议保持 false)
 quiet = false
 
-# ---- 手机推送(可选,推荐) ----
+# ---- 手机推送(可选) ----
 # 安卓: 装 ntfy App(https://ntfy.sh 或 F-Droid) → 订阅一个别人猜不到的主题(如 qd-xidian-8f3k)
 #      把主题名填到 ntfy_topic,手机就会收到推送
 # 微信: 关注 PushPlus 公众号拿到 token,填到 pushplus_token
 # 两个都留空则只在本机弹窗+提示音
-ntfy_topic = ""
+ntfy_topic = "qd-xidian-8f3k"
 pushplus_token = ""
 
 # ---- 定时提醒(可选) ----
