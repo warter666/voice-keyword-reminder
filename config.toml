@@ -29,3 +29,16 @@ beep = true    # 提示音
 
 # 不打印每段识别文本(调试建议保持 false)
 quiet = false
+
+# ---- 手机推送(可选,推荐) ----
+# 安卓: 装 ntfy App(https://ntfy.sh 或 F-Droid) → 订阅一个别人猜不到的主题(如 qd-xidian-8f3k)
+#      把主题名填到 ntfy_topic,手机就会收到推送
+# 微信: 关注 PushPlus 公众号拿到 token,填到 pushplus_token
+# 两个都留空则只在本机弹窗+提示音
+ntfy_topic = ""
+pushplus_token = ""
+
+# ---- 定时提醒(可选) ----
+# 每天这些时刻推送「可能是签到时间」,应对听不清/没说话的情况
+# 按你的课程规律填:开课时刻、开课约45分钟后、下课(或结束前10分钟)
+#remind_times = ["08:00", "08:45", "09:30"]

@@ -51,6 +51,7 @@ except ImportError:
 
 TARGET_SR = 16000  # whisper 要求 16kHz 单声道
 STRIP_RE = re.compile(r"[\s，。！？、,.!?：:;；]+")
+NTFY_BASE = "https://ntfy.sh"  # 测试时可替换
 
 # 管道/重定向下用 UTF-8,避免中文输出报错;真实控制台不受影响
 for _s in (sys.stdout, sys.stderr):
@@ -236,6 +237,34 @@ def capture_worker(audio_q: queue.Queue, meta: dict, stop_evt: threading.Event,
 
 # ---------------------------------------------------------------- 提醒与识别
 
+def push_phone(title: str, msg: str, s) -> None:
+    """手机推送:ntfy(安卓 App)和/或 PushPlus(微信),后台线程发送不阻塞识别"""
+    def _send():
+        import json as _json
+        import urllib.parse
+        import urllib.request
+        if s.ntfy_topic:
+            try:
+                # 用 JSON 发布格式,标题/正文支持中文(HTTP 头不允许非 latin-1 字符)
+                payload = _json.dumps({"topic": s.ntfy_topic, "title": title,
+                                       "message": msg, "tags": ["bell"],
+                                       "priority": "high"}).encode("utf-8")
+                req = urllib.request.Request(f"{NTFY_BASE}/", data=payload,
+                                             headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=10)
+            except Exception as e:
+                print(f"[{ts()}] ntfy 推送失败: {e}")
+        if s.pushplus_token:
+            try:
+                qs = urllib.parse.urlencode(
+                    {"token": s.pushplus_token, "title": title,
+                     "content": msg, "template": "txt"})
+                urllib.request.urlopen(f"http://www.pushplus.plus/send?{qs}", timeout=10)
+            except Exception as e:
+                print(f"[{ts()}] PushPlus 推送失败: {e}")
+    threading.Thread(target=_send, daemon=True).start()
+
+
 def fire_alert(keywords, text, s) -> None:
     if s.beep:
         try:
@@ -256,6 +285,7 @@ def fire_alert(keywords, text, s) -> None:
             toast.show()
         except Exception as e:
             print(f"[{ts()}] 通知发送失败: {e}")
+    push_phone(f"听到「{'、'.join(keywords)}」", text[-100:] or "快去签到!", s)
 
 
 def process_window(model, window: np.ndarray, sr: int, matchers, s, last_hit: dict) -> None:
@@ -312,6 +342,13 @@ def load_settings(args) -> SimpleNamespace:
     else:
         keywords = ["签到"]
 
+    remind_times = []
+    for t in (cfg.get("remind_times") or []):
+        m = re.match(r"^(\d{1,2}):(\d{2})$", str(t).strip())
+        if not m:
+            sys.exit(f"remind_times 格式错误: {t}(应为 \"HH:MM\")")
+        remind_times.append((int(m.group(1)), int(m.group(2))))
+
     s = SimpleNamespace(
         keywords=keywords,
         device=pick(args.device, "device", None),
@@ -321,6 +358,9 @@ def load_settings(args) -> SimpleNamespace:
         cooldown=float(pick(args.cooldown, "cooldown", 30.0)),
         silence=float(pick(args.silence, "silence", 5e-4)),
         pinyin=bool(cfg.get("pinyin", False)),
+        ntfy_topic=str(cfg.get("ntfy_topic", "")).strip(),
+        pushplus_token=str(cfg.get("pushplus_token", "")).strip(),
+        remind_times=remind_times,
         toast=(not args.no_toast) if args.no_toast is not None else bool(cfg.get("toast", True)),
         beep=(not args.no_beep) if args.no_beep is not None else bool(cfg.get("beep", True)),
         quiet=(args.quiet or bool(cfg.get("quiet", False))),
@@ -388,6 +428,12 @@ def main() -> None:
     print(f"[{ts()}] 正在监听: {meta['device']} ({sr}Hz, {meta['channels']}声道)")
     print(f"[{ts()}] 关键词: {' / '.join(s.keywords)}"
           f"   拼音容错: {'开' if s.pinyin else '关'}   Ctrl+C 退出")
+    if s.ntfy_topic or s.pushplus_token:
+        print(f"[{ts()}] 手机推送: {'ntfy ' + s.ntfy_topic if s.ntfy_topic else ''}"
+              f"{' PushPlus' if s.pushplus_token else ''}")
+    if s.remind_times:
+        print(f"[{ts()}] 定时提醒: "
+              + ", ".join(f"{h:02d}:{m:02d}" for h, m in s.remind_times))
 
     win_n = int(s.window * sr)
     step_n = int(s.step * sr)
@@ -395,9 +441,25 @@ def main() -> None:
     chunks: deque = deque()
     total = 0
     last_hit: dict = {}
+    fired: set = set()
 
     try:
         while True:
+            # 定时提醒:到点推送「可能是签到时间」(不依赖语音识别)
+            now = time.localtime()
+            for h, m in s.remind_times:
+                key = (now.tm_mday, h, m)
+                if now.tm_hour == h and now.tm_min == m and key not in fired:
+                    fired.add(key)
+                    print(f"[{ts()}] *** 定时提醒: 可能是签到时间 ***")
+                    push_phone("签到时间提醒", "按课程安排,现在可能是签到时间", s)
+                    if s.beep:
+                        try:
+                            winsound.PlaySound("SystemExclamation",
+                                               winsound.SND_ALIAS | winsound.SND_ASYNC)
+                        except Exception:
+                            pass
+
             got_new = False
             try:
                 while True:
