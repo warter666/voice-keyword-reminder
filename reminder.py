@@ -306,7 +306,7 @@ def push_phone(title: str, msg: str, s) -> None:
             if last_err:
                 print(f"[{ts()}] ntfy 推送失败(已重试3次): {last_err}")
             else:
-                print(f"[{ts()}] 已推送手机(ntfy/{s.ntfy_topic})")
+                print(f"[{ts()}] 已推送手机(ntfy)")
         if s.pushplus_token:
             qs = urllib.parse.urlencode(
                 {"token": s.pushplus_token, "title": title,
