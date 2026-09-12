@@ -3,7 +3,7 @@
 [English](#english) | 中文
 
 监听 Windows 系统正在播放的声音(视频 / 直播 / 网课),当出现你关心的关键词时,
-自动弹出 Windows 通知并播放提示音。比如直播里主播说「签到」,你会立刻收到提醒。
+自动弹出 Windows 通知并播放提示音。比如直播里主播说「签到」,你会立刻收到提醒。（哈哈并非主播，就是想着远程签到：)）
 
 **100% 本地离线识别**:音频不离开你的电脑,不联网、不上传、不存录音。
 
@@ -109,7 +109,7 @@ D:\Desktop\voice_reminder\.venv\Scripts\pythonw.exe D:\Desktop\voice_reminder\re
 
 ## English
 
-A Windows utility that listens to whatever is playing on your speakers (videos, live streams, classes) via WASAPI loopback capture, transcribes it locally with faster-whisper, and fires a Windows toast notification + sound the moment your keyword is spoken — e.g. "签到" (check-in) in a livestream.
+A Windows utility that listens to whatever is playing on your speakers (videos, live streams, classes) via WASAPI loopback capture, transcribes it locally with faster-whisper, and fires a Windows toast notification + sound the moment your keyword is spoken — e.g. "签到" (check-in) in a livestream. (Haha, I’m not the streamer. I just wanted to sign in remotely.)
 
 Highlights: 100% offline & private (no audio ever leaves your machine), traditional/simplified Chinese normalization plus pinyin homophone-tolerant matching (a mis-transcribed「副典長」still hits the keyword「副店长」), multiple keywords with per-keyword cooldown, and a single `config.toml` + double-click `start.bat` workflow.
 
