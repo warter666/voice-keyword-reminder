@@ -1,8 +1,8 @@
 @echo off
-rem 双击运行:读取同目录 config.toml 开始监听
+rem Run voice reminder with the project venv (no activation needed)
 cd /d "%~dp0"
 if not exist ".venv\Scripts\python.exe" (
-    echo [!] 未找到 .venv 虚拟环境,请先按 README.md 安装依赖
+    echo [!] .venv not found. Run: python -m venv .venv ^&^& .venv\Scripts\pip install -r requirements.txt
     pause
     exit /b 1
 )
