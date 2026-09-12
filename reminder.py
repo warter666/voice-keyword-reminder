@@ -209,13 +209,25 @@ def pick_default_loopback(p):
 
 
 def capture_worker(audio_q: queue.Queue, meta: dict, stop_evt: threading.Event,
-                   device_index) -> None:
+                   device) -> None:
     """后台线程:打开回环流,把音频塞进队列(队列满时丢最旧)"""
     stream = None
     try:
         with pyaudio.PyAudio() as p:
-            if device_index is not None:
-                dev = p.get_device_info_by_index(int(device_index))
+            dev = None
+            if isinstance(device, str) and device.strip():
+                # 按名称匹配:设备编号会因插拔/重启变化,名字更稳定
+                want = device.strip()
+                for lb in p.get_loopback_device_info_generator():
+                    if want.lower() in lb["name"].lower():
+                        dev = lb
+                        break
+                if dev is None:
+                    meta["error"] = (f"找不到名称包含「{want}」的回环设备,"
+                                     "用 --list-devices 查看现有设备名")
+                    return
+            elif device not in (None, ""):
+                dev = p.get_device_info_by_index(int(device))
             else:
                 dev = pick_default_loopback(p)
             if dev is None:
@@ -293,6 +305,8 @@ def push_phone(title: str, msg: str, s) -> None:
                         _time.sleep(1 if attempt == 0 else 3)
             if last_err:
                 print(f"[{ts()}] ntfy 推送失败(已重试3次): {last_err}")
+            else:
+                print(f"[{ts()}] 已推送手机(ntfy/{s.ntfy_topic})")
         if s.pushplus_token:
             qs = urllib.parse.urlencode(
                 {"token": s.pushplus_token, "title": title,
@@ -454,6 +468,16 @@ def main() -> None:
         with pyaudio.PyAudio() as p:
             list_loopback_devices(p)
         return
+
+    # 单实例锁:防止双开导致重复识别、重复通知/推送
+    import msvcrt
+    lock_path = Path(__file__).with_name("reminder.lock")
+    lock_fp = open(lock_path, "w")
+    try:
+        msvcrt.locking(lock_fp.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError:
+        sys.exit("检测到 reminder.py 已在运行(锁文件被占用),请勿双开。\n"
+                 "如果确认没有在跑,删除项目目录下的 reminder.lock 后重试。")
 
     s = load_settings(args)
     matchers = build_matchers(s.keywords, s.pinyin)

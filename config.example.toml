@@ -2,9 +2,10 @@
 # 复制本文件为 config.toml 后按需修改;config.toml 含个人敏感信息,已被 .gitignore 排除不入库
 # 命令行参数优先级高于配置文件
 
-# 监听的回环(系统声音)设备编号,用 `python reminder.py --list-devices` 查看
-# 不填则自动跟随系统默认播放设备
-#device = 35
+# 监听的回环(系统声音)设备:推荐留空 "" 自动跟随系统默认播放设备
+# 也可写名称片段如 "耳机"(按名字找,插拔不变)或编号(插拔后会变,不推荐)
+# 用 `python reminder.py --list-devices` 查看设备名
+#device = ""
 
 # whisper 模型: tiny/base/small/medium,越大越准越慢
 # 实测体积: small≈464MB、medium≈1.5GB(首次运行自动下载,国内可设 HF_ENDPOINT=https://hf-mirror.com)

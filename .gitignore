@@ -22,3 +22,5 @@ dist/
 
 # 本地配置(含手机推送主题等敏感信息,不入库;参考 config.example.toml)
 config.toml
+# 单实例锁
+reminder.lock
