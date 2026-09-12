@@ -1,0 +1,21 @@
+# 虚拟环境
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# 打包
+build/
+dist/
+*.spec
+
+# 日志与模型缓存
+*.log
+.cache/
+
+# 本地工具产物
+.zcode/
