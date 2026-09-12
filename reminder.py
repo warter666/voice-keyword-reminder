@@ -269,27 +269,48 @@ def push_phone(title: str, msg: str, s) -> None:
     """手机推送:ntfy(安卓 App)和/或 PushPlus(微信),后台线程发送不阻塞识别"""
     def _send():
         import json as _json
+        import time as _time
         import urllib.parse
         import urllib.request
         if s.ntfy_topic:
-            try:
-                # 用 JSON 发布格式,标题/正文支持中文(HTTP 头不允许非 latin-1 字符)
-                payload = _json.dumps({"topic": s.ntfy_topic, "title": title,
-                                       "message": msg, "tags": ["bell"],
-                                       "priority": "high"}).encode("utf-8")
-                req = urllib.request.Request(f"{NTFY_BASE}/", data=payload,
-                                             headers={"Content-Type": "application/json"})
-                urllib.request.urlopen(req, timeout=10)
-            except Exception as e:
-                print(f"[{ts()}] ntfy 推送失败: {e}")
+            # 境内访问 ntfy.sh 偶发 TLS 断连(SSL EOF),失败自动重试: 间隔 1s/3s,最多 3 次
+            payload = _json.dumps({"topic": s.ntfy_topic, "title": title,
+                                   "message": msg, "tags": ["bell"],
+                                   "priority": 4,  # ntfy 只收数字优先级(4=high),字符串 "high" 会被拒收(HTTP 400)
+                                   }).encode("utf-8")
+            req = urllib.request.Request(f"{NTFY_BASE}/", data=payload,
+                                         headers={"Content-Type": "application/json"})
+            last_err = None
+            for attempt in range(3):
+                try:
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        resp.read()
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = e
+                    if attempt < 2:
+                        _time.sleep(1 if attempt == 0 else 3)
+            if last_err:
+                print(f"[{ts()}] ntfy 推送失败(已重试3次): {last_err}")
         if s.pushplus_token:
-            try:
-                qs = urllib.parse.urlencode(
-                    {"token": s.pushplus_token, "title": title,
-                     "content": msg, "template": "txt"})
-                urllib.request.urlopen(f"http://www.pushplus.plus/send?{qs}", timeout=10)
-            except Exception as e:
-                print(f"[{ts()}] PushPlus 推送失败: {e}")
+            qs = urllib.parse.urlencode(
+                {"token": s.pushplus_token, "title": title,
+                 "content": msg, "template": "txt"})
+            url = f"https://www.pushplus.plus/send?{qs}"
+            last_err = None
+            for attempt in range(3):
+                try:
+                    with urllib.request.urlopen(url, timeout=10) as resp:
+                        resp.read()
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = e
+                    if attempt < 2:
+                        _time.sleep(1 if attempt == 0 else 3)
+            if last_err:
+                print(f"[{ts()}] PushPlus 推送失败(已重试3次): {last_err}")
     threading.Thread(target=_send, daemon=True).start()
 
 

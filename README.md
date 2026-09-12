@@ -62,7 +62,7 @@ set HF_ENDPOINT=https://hf-mirror.com
 |---|---|---|
 | `device` | 自动 | 回环设备编号,`--list-devices` 查看;不填跟随系统默认播放设备 |
 | `keywords` | `["签到"]` | 关键词列表;繁体转写自动归一。词尾加 `*` 启用拼音近音容错:`签到*` 可命中「千道」(同音)和「先到」(声母 q/x 易混) |
-| `model` | `small` | `tiny` / `base` / `small` / `medium`,越大越准越慢 |
+| `model` | `small` | `tiny` / `base` / `small` / `medium`,越大越准越慢;实测体积 small≈464MB、medium≈1.5GB,首次运行自动下载 |
 | `cooldown` | `30` | 同一关键词两次提醒的最小间隔(秒) |
 | `window` / `step` | `4` / `2` | 识别窗口长度与步进(秒),步进小于窗口时窗口重叠防漏 |
 | `pinyin` | `false` | 对**所有**关键词启用拼音近音容错;建议保持关闭、按需给单词加 `*`(容错越大误报越多,如「千岛湖」会命中「签到*」) |
