@@ -19,6 +19,7 @@ dist/
 
 # 本地工具产物
 .zcode/
+.mimosa/
 
 # 本地配置(含手机推送主题等敏感信息,不入库;参考 config.example.toml)
 config.toml
